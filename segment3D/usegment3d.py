@@ -127,8 +127,11 @@ def Cellpose2D_model_auto(img, view, params, basename=None, savefolder=None):
     from cellpose import models
     import scipy.io as spio 
     
-    model = models.Cellpose(model_type=params['cellpose_modelname'], gpu=params['gpu'])
-    
+    # I modified this to exclude the size model we don't have
+    # model = models.Cellpose(model_type=params['cellpose_modelname'], gpu=params['gpu'])
+    model = models.CellposeModel(device=None, gpu=params['gpu'], model_type=params['cellpose_modelname'],
+                                 diam_mean=30., nchan=2, backbone='default')
+
     grayscale_bool = params['cellpose_channels'] =='grayscale'
     if grayscale_bool:
         channels = [0,0]
@@ -150,7 +153,7 @@ def Cellpose2D_model_auto(img, view, params, basename=None, savefolder=None):
     else:
         input_im = img.transpose(order)
     
-    auto_diam, (all_probs, all_flows, all_styles) = usegment3D_segment.apply_cellpose_model_2D_prob(input_im, 
+    auto_diam, (all_masks, all_probs, all_flows, all_styles) = usegment3D_segment.apply_cellpose_model_2D_prob(input_im, 
                                                                                                     model, 
                                                                                                     model_channels=channels, 
                                                                                                     best_diam=params['best_diam'], 
@@ -169,6 +172,7 @@ def Cellpose2D_model_auto(img, view, params, basename=None, savefolder=None):
                                                                                                     use_prob_weighted_score=params['use_prob_weighted_score'],
                                                                                                     debug_viz=params['debug_viz']) 
 
+    all_masks = np.squeeze(all_masks).astype(np.uint16)
     all_probs = np.squeeze(all_probs).astype(np.float32)
     all_flows = np.squeeze(all_flows).astype(np.float32) 
             
@@ -178,10 +182,12 @@ def Cellpose2D_model_auto(img, view, params, basename=None, savefolder=None):
         all_flows = all_flows.transpose(0,1,2,3)
         
     if view == 'xz':
+        all_masks = all_masks.transpose(1,0,2)
         all_probs = all_probs.transpose(1,0,2)
         all_flows = all_flows.transpose(0,2,1,3) # the first channel is the flow!.
         
     if view == 'yz':
+        all_masks = all_masks.transpose(1,2,0)
         all_probs = all_probs.transpose(1,2,0)
         all_flows = all_flows.transpose(0,2,3,1) # the first channel is the flow!.
         
@@ -205,7 +211,7 @@ def Cellpose2D_model_auto(img, view, params, basename=None, savefolder=None):
                       'diam_score':auto_diam[1], 
                       'best_diam':auto_diam[2]}, do_compression=True)
         
-    return auto_diam, all_probs, all_flows, all_styles
+    return auto_diam, all_masks, all_probs, all_flows, all_styles
 
 
 # make the equivalent below but for the indirect method which is more convoluted. 

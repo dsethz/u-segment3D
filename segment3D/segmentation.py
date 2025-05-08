@@ -554,7 +554,7 @@ def apply_cellpose_model_2D_prob(im_stack, model,
                             img = _BackgroundRemoval(img)
                         img = skexposure.rescale_intensity(img)
                     
-                _, flow, style = model.cp.eval([img], 
+                _, flow, style = model.eval([img], 
                                             channels=model_channels, 
                                             batch_size=32,
                                             do_3D=False, 
@@ -644,6 +644,7 @@ def apply_cellpose_model_2D_prob(im_stack, model,
         
     print('auto determine cell diameter: ', best_diam)
 
+    all_masks = []
     all_probs = []
     all_flows = []
     all_styles = []
@@ -658,13 +659,13 @@ def apply_cellpose_model_2D_prob(im_stack, model,
             # img = normalize(img, pmin=2, pmax=99.8, clip=True)
             img = skexposure.rescale_intensity(img)
             
-        _, flow, style = model.cp.eval([img],
+        mask, flow, style = model.eval([img],
                                         batch_size=32,
                                               channels=model_channels, 
                                               diameter=best_diam,
                                               # model_loaded=True,
                                               invert=model_invert,
-                                              compute_masks=False)
+                                              compute_masks=True)
         
         # _, flow, style, _ = model.eval([img],
         #                                batch_size=32,
@@ -672,7 +673,8 @@ def apply_cellpose_model_2D_prob(im_stack, model,
         #                                diameter=best_diam,
         #                                model_loaded=True,
         #                                invert=model_invert)
-        
+ 
+        all_masks.append(mask[0])
         all_probs.append(flow[0][2])
         all_flows.append(flow[0][1])
         all_styles.append(style[0])
@@ -688,12 +690,13 @@ def apply_cellpose_model_2D_prob(im_stack, model,
     # all_probs = all_flows[2].copy()
     # all_flows = all_flows[1].copy()
     
+    all_masks = np.array(all_masks, dtype=np.uint16)
     all_probs = np.array(all_probs, dtype=np.float32)
     all_flows = np.array(all_flows, dtype=np.float32)
     all_styles = np.array(all_styles, dtype=np.float32)
 
     
-    return (diam_range, diam_score, best_diam, test_slice), (all_probs, all_flows, all_styles)
+    return (diam_range, diam_score, best_diam, test_slice), (all_masks, all_probs, all_flows, all_styles)
 
 
 # create function to isolate the multiscales.
