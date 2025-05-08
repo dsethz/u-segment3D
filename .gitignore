@@ -86,3 +86,4 @@ venv/
 # others
 .goutput*
 *.pyc
+example_data/
